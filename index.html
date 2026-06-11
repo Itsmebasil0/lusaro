@@ -111,25 +111,68 @@ const CATS=[
   {id:'home',label:'Home & Living',icon:'ti-home'},
   {id:'beauty',label:'Beauty & Care',icon:'ti-sparkles'},
 ];
-const PKEY='lusaro_prods_v3';
-const AKEY='lusaro_auth_v2';
+const SUPABASE_URL =
+  "https://xbngwpzciinrmspbskzk.supabase.co";
 
-function lp(){try{return JSON.parse(localStorage.getItem(PKEY)||'[]')}catch(e){return[]}}
-function sp(p){try{localStorage.setItem(PKEY,JSON.stringify(p))}catch(e){alert('Storage full. Try removing some products or using smaller images.');}}
-function ili(){try{return localStorage.getItem(AKEY)==='yes'}catch(e){return false}}
-function sli(){try{localStorage.setItem(AKEY,'yes')}catch(e){}}
-function slo(){try{localStorage.removeItem(AKEY)}catch(e){}}
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhibmd3cHpjaWlucm1zcGJza3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNTgyMjMsImV4cCI6MjA5NjczNDIyM30.OqXwczpW0-08sMD_JnbWvZGMpLQY_nltMvPhvcOmAz8";
 
-const S={view:ili()?'admin':'home',prods:lp(),cat:'all',logErr:'',pendingImg:null};
+const supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
-function esc(s){const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML}
-function catLbl(id){return(CATS.find(c=>c.id===id)||{label:id}).label}
+const S={
+  view:'home',
+  prods:[],
+  cat:'all',
+  logErr:'',
+  pendingImg:null
+};
+async function uploadImage(file){
 
-function render(){
-  const a=document.getElementById('app');
-  if(S.view==='login'){a.innerHTML=rLogin();bLogin();return}
-  if(S.view==='admin'){a.innerHTML=rAdmin();bAdmin();return}
-  a.innerHTML=rHome();
+  const fileName =
+    `${Date.now()}-${file.name}`;
+
+  const { error } =
+    await supabase.storage
+      .from('product-images')
+      .upload(fileName,file);
+
+  if(error){
+    throw error;
+  }
+
+  const { data } =
+    supabase.storage
+      .from('product-images')
+      .getPublicUrl(fileName);
+
+  return data.publicUrl;
+}
+async function loadProducts() {
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending:false });
+
+  if(error){
+    console.error(error);
+    return;
+  }
+
+  S.prods = data.map(item => ({
+    id:item.id,
+    title:item.title,
+    desc:item.description,
+    link:item.link,
+    cat:item.category,
+    badge:item.badge,
+    img:item.image_url
+  }));
+
+  render();
 }
 
 function rNav(admin=false){
@@ -308,17 +351,39 @@ function bAdmin(){
     const t=document.getElementById('ft').value.trim();
     const l=document.getElementById('fl').value.trim();
     if(!t||!l){alert('Title and link are required.');return}
-    const prod={
-      title:t,
-      desc:document.getElementById('fd').value.trim(),
-      link:l,
-      cat:document.getElementById('fc').value,
-      badge:document.getElementById('fb').value.trim(),
-      img:S.pendingImg||null,
-      id:Date.now()
-    };
-    S.prods.unshift(prod);
-    sp(S.prods);
+let imageUrl = null;
+
+const imageInput =
+document.getElementById('fimg');
+
+if(imageInput.files.length){
+
+  imageUrl = await uploadImage(
+    imageInput.files[0]
+  );
+}
+
+const { error } =
+await supabase
+.from('products')
+.insert([{
+  title:t,
+  description:
+    document.getElementById('fd').value.trim(),
+  link:l,
+  category:
+    document.getElementById('fc').value,
+  badge:
+    document.getElementById('fb').value.trim(),
+  image_url:imageUrl
+}]);
+
+if(error){
+  alert(error.message);
+  return;
+}
+
+await loadProducts();
     // Reset form
     document.getElementById('ft').value='';
     document.getElementById('fd').value='';
@@ -368,7 +433,23 @@ window.gHome=()=>{S.view='home';render()}
 window.gLogin=()=>{if(ili()){S.view='admin';render();}else{S.view='login';S.logErr='';render();}}
 window.gLogout=()=>{slo();S.view='home';render()}
 window.setCat=(c)=>{S.cat=c;render()}
-window.delProd=(i)=>{if(!confirm('Delete this product?'))return;S.prods.splice(i,1);sp(S.prods);render()}
+window.delProd = async (id) => {
 
-render();
+  if(!confirm("Delete product?"))
+    return;
+
+  const { error } =
+  await supabase
+  .from('products')
+  .delete()
+  .eq('id', id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  await loadProducts();
+};
+loadProducts();
 </script>
