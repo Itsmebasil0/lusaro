@@ -51,6 +51,12 @@
   .pcta{font-size:10px;color:var(--lm);display:flex;align-items:center;gap:2px}
   .empty{text-align:center;padding:3rem 1rem;color:var(--lm);grid-column:1/-1}
   .empty i{font-size:40px;margin-bottom:.8rem;opacity:.4;display:block}
+  
+  /* Loading and Error states */
+  .app-state-msg{text-align:center;padding:5rem 1.2rem;color:var(--lm);font-size:14px}
+  .app-state-msg i{font-size:32px;color:var(--la);margin-bottom:12px;display:block}
+  .app-state-msg.err i{color:#f87171}
+  
   footer{background:var(--lc);border-top:1px solid var(--lb);padding:1.8rem 1.2rem;text-align:center}
   .flogo{color:var(--la);font-size:18px;font-weight:700;letter-spacing:3px;margin-bottom:.4rem}
   .flinks{display:flex;justify-content:center;gap:1.5rem;margin:.8rem 0}
@@ -68,7 +74,6 @@
   .fg select option{background:var(--ld)}
   .fg textarea{min-height:72px;resize:vertical}
 
-  /* Image upload zone */
   .img-upload-zone{width:100%;height:130px;background:var(--ld);border:2px dashed var(--lb);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
   .img-upload-zone:hover{border-color:var(--la);background:rgba(201,168,76,.04)}
   .img-upload-zone.has-img{border-style:solid;border-color:var(--la)}
@@ -124,7 +129,7 @@ const CATS=[
 const SUPABASE_URL = "https://xbngwpzciinrmspbskzk.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhibmd3cHpjaWlucm1zcGJza3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNTgyMjMsImV4cCI6MjA5NjczNDIyM30.OqXwczpW0-08sMD_JnbWvZGMpLQY_nlt3N4pBLyuFME";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase;
 
 const S = {
   view: 'home',
@@ -134,7 +139,6 @@ const S = {
   pendingImg: null
 };
 
-// Helper functions
 function esc(str) {
   if (!str) return '';
   const div = document.createElement('div');
@@ -147,9 +151,9 @@ function catLbl(catId) {
   return cat ? cat.label : 'Unknown';
 }
 
-// Asynchronously check if user has a valid Supabase Auth session active
 async function ili() {
   try {
+    if (!supabase) return false;
     const { data: { session } } = await supabase.auth.getSession();
     return !!session;
   } catch (e) {
@@ -160,7 +164,7 @@ async function ili() {
 function sli() {}
 
 async function slo() {
-  await supabase.auth.signOut();
+  if (supabase) await supabase.auth.signOut();
 }
 
 async function render() {
@@ -173,7 +177,6 @@ async function render() {
     app.innerHTML = rLogin();
     bLogin();
   } else if (S.view === 'admin') {
-    // Extra safety measure for asynchronous dashboard mounting
     const loggedIn = await ili();
     if (!loggedIn) {
       S.view = 'login';
@@ -191,15 +194,18 @@ async function uploadImage(file) {
   const fileName = `${Date.now()}-${file.name}`;
   const { error } = await supabase.storage.from('product-images').upload(fileName, file);
   
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
   
   const { data } = supabase.storage.from('product-images').getPublicUrl(fileName);
   return data.publicUrl;
 }
 
 async function loadProducts() {
+  const app = document.getElementById('app');
+  if (app) {
+    app.innerHTML = `<div class="app-state-msg"><i class="ti ti-loader animate-spin" aria-hidden="true"></i>Loading products from catalog...</div>`;
+  }
+
   try {
     const { data, error } = await supabase
       .from('products')
@@ -207,8 +213,10 @@ async function loadProducts() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error(error);
-    } else if (data) {
+      throw error;
+    }
+
+    if (data) {
       S.prods = data.map(item => ({
         id: item.id,
         title: item.title,
@@ -219,11 +227,18 @@ async function loadProducts() {
         img: item.image_url
       }));
     }
+    await render();
   } catch (e) {
-    console.error("Failed to fetch products:", e);
+    console.error("Initialization Failed:", e);
+    if (app) {
+      app.innerHTML = `
+        <div class="app-state-msg err">
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+          <strong>Unable to load storefront.</strong><br>
+          <span style="font-size: 12px; opacity: 0.7;">${esc(e.message || 'Network connectivity error')}</span>
+        </div>`;
+    }
   }
-  
-  await render();
 }
 
 function rNav(admin = false) {
@@ -515,8 +530,16 @@ window.delProd = async (id) => {
   await loadProducts();
 };
 
-// Safe entry point execution
-loadProducts();
+// Safe entry point execution avoiding CDN and parsing race conditions
+window.addEventListener('DOMContentLoaded', () => {
+  const app = document.getElementById('app');
+  if (typeof window.supabase === 'undefined') {
+    if (app) app.innerHTML = `<div class="app-state-msg err"><i class="ti ti-alert-triangle"></i>Error: Database CDN dependency failed to load.</div>`;
+    return;
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  loadProducts();
+});
 </script>
 </body>
 </html>
