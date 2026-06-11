@@ -149,11 +149,14 @@ function catLbl(catId) {
 
 // Asynchronously check if user has a valid Supabase Auth session active
 async function ili() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return !!session;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return !!session;
+  } catch (e) {
+    return false;
+  }
 }
 
-// Supabase tracks auth tokens automatically, so sli is no longer required
 function sli() {}
 
 async function slo() {
@@ -162,6 +165,8 @@ async function slo() {
 
 async function render() {
   const app = document.getElementById('app');
+  if (!app) return;
+  
   if (S.view === 'home') {
     app.innerHTML = rHome();
   } else if (S.view === 'login') {
@@ -169,10 +174,12 @@ async function render() {
     bLogin();
   } else if (S.view === 'admin') {
     // Extra safety measure for asynchronous dashboard mounting
-    if (!(await ili())) {
+    const loggedIn = await ili();
+    if (!loggedIn) {
       S.view = 'login';
       S.logErr = 'Please sign back in.';
-      render();
+      app.innerHTML = rLogin();
+      bLogin();
       return;
     }
     app.innerHTML = rAdmin();
@@ -193,27 +200,30 @@ async function uploadImage(file) {
 }
 
 async function loadProducts() {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error(error);
-    return;
+    if (error) {
+      console.error(error);
+    } else if (data) {
+      S.prods = data.map(item => ({
+        id: item.id,
+        title: item.title,
+        desc: item.description,
+        link: item.link,
+        cat: item.category,
+        badge: item.badge,
+        img: item.image_url
+      }));
+    }
+  } catch (e) {
+    console.error("Failed to fetch products:", e);
   }
-
-  S.prods = data.map(item => ({
-    id: item.id,
-    title: item.title,
-    desc: item.description,
-    link: item.link,
-    cat: item.category,
-    badge: item.badge,
-    img: item.image_url
-  }));
-
-  render();
+  
+  await render();
 }
 
 function rNav(admin = false) {
@@ -291,7 +301,6 @@ function bLogin() {
     const e = document.getElementById('le').value.trim().toLowerCase();
     const p = document.getElementById('lp').value;
     
-    // Perform authentication against Supabase secure identity service
     const { data, error } = await supabase.auth.signInWithPassword({
       email: e,
       password: p,
@@ -300,15 +309,20 @@ function bLogin() {
     if (!error && data.session) {
       S.view = 'admin';
       S.logErr = '';
-      render();
+      await render();
     } else {
       S.logErr = error ? error.message : 'Incorrect email or password.';
-      render();
+      await render();
     }
   }
-  document.getElementById('lbtn').addEventListener('click', attempt);
-  document.getElementById('lp').addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
-  document.getElementById('le').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('lp').focus(); });
+  
+  const lbtn = document.getElementById('lbtn');
+  const lpInput = document.getElementById('lp');
+  const leInput = document.getElementById('le');
+  
+  if (lbtn) lbtn.addEventListener('click', attempt);
+  if (lpInput) lpInput.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
+  if (leInput) leInput.addEventListener('keydown', e => { if (e.key === 'Enter') lpInput.focus(); });
 }
 
 function rAdmin() {
@@ -367,21 +381,30 @@ function bAdmin() {
       const reader = new FileReader();
       reader.onload = function(e) {
         S.pendingImg = e.target.result;
-        zone.classList.add('has-img');
-        zone.innerHTML = `
-          <img src="${S.pendingImg}" alt="Preview">
-          <div class="overlay"><i class="ti ti-photo-up" style="font-size:22px;color:#fff" aria-hidden="true"></i><span style="font-size:11px;color:#fff;margin-top:4px">Change photo</span></div>
-          <button class="img-preview-clear" id="clearimg" title="Remove photo"><i class="ti ti-x" aria-hidden="true"></i></button>
-          <input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
-        zone.querySelector('#fimg').addEventListener('change', handleImgChange);
-        document.getElementById('clearimg').addEventListener('click', function(e) {
-          e.stopPropagation();
-          e.preventDefault();
-          S.pendingImg = null;
-          zone.classList.remove('has-img');
-          zone.innerHTML = `<div class="placeholder"><i class="ti ti-photo-up" aria-hidden="true"></i><span>Click to upload product photo</span><span style="font-size:10px;margin-top:2px">JPG, PNG, WEBP</span></div><input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
-          zone.querySelector('#fimg').addEventListener('change', handleImgChange);
-        });
+        if (zone) {
+          zone.classList.add('has-img');
+          zone.innerHTML = `
+            <img src="${S.pendingImg}" alt="Preview">
+            <div class="overlay"><i class="ti ti-photo-up" style="font-size:22px;color:#fff" aria-hidden="true"></i><span style="font-size:11px;color:#fff;margin-top:4px">Change photo</span></div>
+            <button class="img-preview-clear" id="clearimg" title="Remove photo"><i class="ti ti-x" aria-hidden="true"></i></button>
+            <input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
+          
+          const newFimg = zone.querySelector('#fimg');
+          if (newFimg) newFimg.addEventListener('change', handleImgChange);
+          
+          const clearBtn = document.getElementById('clearimg');
+          if (clearBtn) {
+            clearBtn.addEventListener('click', function(ev) {
+              ev.stopPropagation();
+              ev.preventDefault();
+              S.pendingImg = null;
+              zone.classList.remove('has-img');
+              zone.innerHTML = `<div class="placeholder"><i class="ti ti-photo-up" aria-hidden="true"></i><span>Click to upload product photo</span><span style="font-size:10px;margin-top:2px">JPG, PNG, WEBP</span></div><input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
+              const resetFimg = zone.querySelector('#fimg');
+              if (resetFimg) resetFimg.addEventListener('change', handleImgChange);
+            });
+          }
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -393,58 +416,70 @@ function bAdmin() {
     const r = new FileReader();
     r.onload = e => {
       S.pendingImg = e.target.result;
-      zone.querySelector('img').src = e.target.result;
+      if (zone) {
+        const previewImg = zone.querySelector('img');
+        if (previewImg) previewImg.src = e.target.result;
+      }
     };
     r.readAsDataURL(f);
   }
 
-  document.getElementById('abtn').addEventListener('click', async () => {
-    const t = document.getElementById('ft').value.trim();
-    const l = document.getElementById('fl').value.trim();
-    if (!t || !l) {
-      alert('Title and link are required.');
-      return;
-    }
+  const abtn = document.getElementById('abtn');
+  if (abtn) {
+    abtn.addEventListener('click', async () => {
+      const t = document.getElementById('ft').value.trim();
+      const l = document.getElementById('fl').value.trim();
+      if (!t || !l) {
+        alert('Title and link are required.');
+        return;
+      }
 
-    let imageUrl = null;
-    const imageInput = document.getElementById('fimg');
+      let imageUrl = null;
+      const imageInput = document.getElementById('fimg');
 
-    if (imageInput && imageInput.files.length) {
-      imageUrl = await uploadImage(imageInput.files[0]);
-    }
+      if (imageInput && imageInput.files.length) {
+        imageUrl = await uploadImage(imageInput.files[0]);
+      }
 
-    const { error } = await supabase
-      .from('products')
-      .insert([{
-        title: t,
-        description: document.getElementById('fd').value.trim(),
-        link: l,
-        category: document.getElementById('fc').value,
-        badge: document.getElementById('fb').value.trim(),
-        image_url: imageUrl
-      }]);
+      const { error } = await supabase
+        .from('products')
+        .insert([{
+          title: t,
+          description: document.getElementById('fd').value.trim(),
+          link: l,
+          category: document.getElementById('fc').value,
+          badge: document.getElementById('fb').value.trim(),
+          image_url: imageUrl
+        }]);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    await loadProducts();
-    document.getElementById('ft').value = '';
-    document.getElementById('fd').value = '';
-    document.getElementById('fl').value = '';
-    document.getElementById('fb').value = '';
-    S.pendingImg = null;
-    const z = document.getElementById('imgzone');
-    z.classList.remove('has-img');
-    z.innerHTML = `<div class="placeholder"><i class="ti ti-photo-up" aria-hidden="true"></i><span>Click to upload product photo</span><span style="font-size:10px;margin-top:2px">JPG, PNG, WEBP</span></div><input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
-    z.querySelector('#fimg').addEventListener('change', handleImgChange);
-    const m = document.getElementById('amsg');
-    m.style.display = 'block';
-    setTimeout(() => { m.style.display = 'none'; }, 2500);
-    refreshList();
-    updateStats();
-  });
+      await loadProducts();
+      document.getElementById('ft').value = '';
+      document.getElementById('fd').value = '';
+      document.getElementById('fl').value = '';
+      document.getElementById('fb').value = '';
+      S.pendingImg = null;
+      
+      if (zone) {
+        zone.classList.remove('has-img');
+        zone.innerHTML = `<div class="placeholder"><i class="ti ti-photo-up" aria-hidden="true"></i><span>Click to upload product photo</span><span style="font-size:10px;margin-top:2px">JPG, PNG, WEBP</span></div><input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
+        const finalFimg = zone.querySelector('#fimg');
+        if (finalFimg) finalFimg.addEventListener('change', handleImgChange);
+      }
+      
+      const m = document.getElementById('amsg');
+      if (m) {
+        m.style.display = 'block';
+        setTimeout(() => { m.style.display = 'none'; }, 2500);
+      }
+      refreshList();
+      updateStats();
+    });
+  }
 }
 
 function refreshList() {
@@ -466,10 +501,10 @@ function updateStats() {
   if (ns[1]) ns[1].textContent = new Set(S.prods.map(p => p.cat)).size;
 }
 
-window.gHome = () => { S.view = 'home'; render(); };
-window.gLogin = async () => { if (await ili()) { S.view = 'admin'; render(); } else { S.view = 'login'; S.logErr = ''; render(); } };
-window.gLogout = async () => { await slo(); S.view = 'home'; render(); };
-window.setCat = (c) => { S.cat = c; render(); };
+window.gHome = async () => { S.view = 'home'; await render(); };
+window.gLogin = async () => { if (await ili()) { S.view = 'admin'; await render(); } else { S.view = 'login'; S.logErr = ''; await render(); } };
+window.gLogout = async () => { await slo(); S.view = 'home'; await render(); };
+window.setCat = async (c) => { S.cat = c; await render(); };
 window.delProd = async (id) => {
   if (!confirm("Delete product?")) return;
   const { error } = await supabase.from('products').delete().eq('id', id);
@@ -480,6 +515,7 @@ window.delProd = async (id) => {
   await loadProducts();
 };
 
+// Safe entry point execution
 loadProducts();
 </script>
 </body>
