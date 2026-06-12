@@ -250,6 +250,7 @@ async function deleteProduct(id){
 async function updateProduct(id, fields){
   const { data, error } = await supa.from('products').update(fields).eq('id', id).select();
   if(error) throw error;
+  if(!data || !data[0]) throw new Error('Update succeeded but returned no data. Check your Supabase RLS SELECT policy.');
   return data[0];
 }
 
@@ -758,7 +759,7 @@ window.openEdit = (id)=>{
 
       const updated = await updateProduct(p.id, fields);
       const idx = S.prods.findIndex(x=>String(x.id)===String(p.id));
-      if(idx>-1) S.prods[idx] = updated;
+      if(idx>-1) S.prods[idx] = updated || { ...S.prods[idx], ...fields };
 
       showToast('Product updated successfully!');
       closeEdit();
