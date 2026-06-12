@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lusaro Store – Curated Products</title>
+  <meta name="description" content="Discover premium curated products across cars, kitchen, fashion, tech and more at Lusaro Store."/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23c9a84c'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='18' fill='%230a0a0f'>L</text></svg>"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --ld:#0a0a0f;--lc:#13131a;--la:#c9a84c;--la2:#e8c96d;
+      --lt:#f0ede8;--lm:#8a8490;--lb:#2a2535;--lh:#1e1c28
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--ld);color:var(--lt);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh}
+    a{text-decoration:none;color:inherit}
+    button{font-family:inherit;cursor:pointer}
+
+    /* ── NAV ── */
+    nav{background:rgba(10,10,15,0.97);border-bottom:1px solid var(--lb);padding:0 1.4rem;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:200;backdrop-filter:blur(10px)}
+    .nlogo{display:flex;align-items:center;gap:9px;cursor:pointer}
+    .nm{width:34px;height:34px;background:var(--la);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#0a0a0f;flex-shrink:0}
+    .nt{font-size:18px;font-weight:700;color:var(--la);letter-spacing:2px}
+    .nav-r{display:flex;align-items:center;gap:8px}
+    .nbtn{background:none;border:1px solid var(--lb);color:var(--lt);padding:7px 14px;border-radius:7px;font-size:12px;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+    .nbtn:hover{border-color:var(--la);color:var(--la)}
+    .nbtn.p{background:var(--la);color:#0a0a0f;border-color:var(--la);font-weight:600}
+    .nbtn.p:hover{background:var(--la2)}
+
+    /* ── HERO ── */
+    .hero{padding:4rem 1.4rem 3rem;text-align:center;border-bottom:1px solid var(--lb);position:relative;overflow:hidden;background:linear-gradient(135deg,#0a0a0f 0%,#13101e 60%,#0f0a0a 100%)}
+    .hero::before{content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(201,168,76,.13) 0%,transparent 70%);pointer-events:none}
+    .hbadge{display:inline-flex;align-items:center;gap:5px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);color:var(--la);padding:5px 14px;border-radius:20px;font-size:11px;margin-bottom:1.3rem;letter-spacing:1px;text-transform:uppercase}
+    .hero h1{font-size:2.4rem;font-weight:700;margin-bottom:.7rem;line-height:1.2;position:relative}
+    .hero h1 span{color:var(--la)}
+    .hero p{color:var(--lm);font-size:1rem;max-width:460px;margin:0 auto 1.5rem;line-height:1.7;position:relative}
+    .hstats{display:flex;justify-content:center;gap:3rem;margin-top:2rem;position:relative}
+    .hstat .n{font-size:1.6rem;font-weight:700;color:var(--la)}
+    .hstat .l{font-size:10px;color:var(--lm);text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+
+    /* ── INSTAGRAM STRIP ── */
+    .istrip{background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.15);border-radius:13px;padding:1rem 1.4rem;margin:1.2rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+    .istrip span{font-size:13px;color:var(--lm)}
+    .istrip strong{color:var(--lt)}
+    .ilink{background:var(--la);color:#0a0a0f;padding:7px 15px;border-radius:8px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;transition:background .2s}
+    .ilink:hover{background:var(--la2)}
+
+    /* ── SECTIONS ── */
+    .sec{padding:1.8rem 1.4rem}
+    .sec-title{font-size:1rem;font-weight:600;margin-bottom:1.2rem;display:flex;align-items:center;gap:7px}
+    .sec-title span{color:var(--la)}
+
+    /* ── CATEGORY TABS ── */
+    .ctabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.4rem}
+    .ctab{background:var(--lc);border:1px solid var(--lb);color:var(--lm);padding:7px 15px;border-radius:20px;font-size:12px;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+    .ctab:hover,.ctab.a{background:rgba(201,168,76,.12);border-color:var(--la);color:var(--la)}
+
+    /* ── PRODUCT GRID ── */
+    .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:16px}
+    .pcard{background:var(--lc);border:1px solid var(--lb);border-radius:14px;overflow:hidden;transition:all .25s;display:block;text-decoration:none}
+    .pcard:hover{border-color:var(--la);transform:translateY(-4px);box-shadow:0 10px 35px rgba(201,168,76,.13)}
+    .pimg{width:100%;height:160px;background:var(--lh);display:flex;align-items:center;justify-content:center;color:var(--lm);font-size:32px;position:relative;overflow:hidden}
+    .pimg img{width:100%;height:100%;object-fit:cover;display:block}
+    .pbadge{position:absolute;top:9px;left:9px;background:var(--la);color:#0a0a0f;font-size:9px;font-weight:700;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.5px;z-index:1}
+    .pinfo{padding:13px}
+    .ptitle{font-size:13px;font-weight:500;margin-bottom:5px;line-height:1.4;color:var(--lt)}
+    .pdesc{font-size:11px;color:var(--lm);line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .pfoot{display:flex;align-items:center;justify-content:space-between}
+    .ptag{font-size:9px;background:rgba(201,168,76,.1);color:var(--la);padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px}
+    .pcta{font-size:10px;color:var(--lm);display:inline-flex;align-items:center;gap:2px}
+
+    /* ── EMPTY / LOADING ── */
+    .empty{text-align:center;padding:4rem 1rem;color:var(--lm);grid-column:1/-1}
+    .empty i{font-size:44px;margin-bottom:1rem;opacity:.35;display:block}
+    .empty p{font-size:14px}
+    .loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:3rem;color:var(--lm);grid-column:1/-1}
+    .spinner{width:22px;height:22px;border:2px solid var(--lb);border-top-color:var(--la);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── TOAST ── */
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--lc);border:1px solid var(--la);color:var(--lt);padding:12px 18px;border-radius:10px;font-size:13px;z-index:999;display:flex;align-items:center;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.4);animation:slideup .3s ease;max-width:300px}
+    .toast.err{border-color:#f87171;color:#f87171}
+    @keyframes slideup{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+    /* ── FOOTER ── */
+    footer{background:var(--lc);border-top:1px solid var(--lb);padding:2rem 1.4rem;text-align:center}
+    .flogo{color:var(--la);font-size:20px;font-weight:700;letter-spacing:3px;margin-bottom:.4rem}
+    .flinks{display:flex;justify-content:center;gap:1.8rem;margin:.9rem 0}
+    .flinks a{color:var(--lm);font-size:12px;transition:color .2s}
+    .flinks a:hover{color:var(--la)}
+
+    /* ── LOGIN ── */
+    .lwrap{min-height:85vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .lcard{background:var(--lc);border:1px solid var(--lb);border-radius:20px;padding:2.4rem;max-width:350px;width:100%;text-align:center}
+    .llogo{font-size:24px;font-weight:700;color:var(--la);letter-spacing:3px;margin-bottom:.4rem}
+    .lsub{font-size:12px;color:var(--lm);margin-bottom:2rem}
+    .lerr{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);color:#f87171;padding:10px 13px;border-radius:8px;font-size:12px;margin-bottom:.9rem;display:flex;align-items:center;gap:6px}
+
+    /* ── FORMS ── */
+    .fg{margin-bottom:.95rem}
+    .fg label{display:block;font-size:11px;color:var(--lm);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+    .fg input,.fg textarea,.fg select{width:100%;background:var(--ld);border:1px solid var(--lb);color:var(--lt);padding:10px 12px;border-radius:8px;font-size:13px;transition:border-color .2s;font-family:inherit}
+    .fg input:focus,.fg textarea:focus,.fg select:focus{outline:none;border-color:var(--la)}
+    .fg select option{background:var(--ld)}
+    .fg textarea{min-height:75px;resize:vertical}
+
+    /* ── IMAGE UPLOAD ── */
+    .izone{width:100%;height:135px;background:var(--ld);border:2px dashed var(--lb);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+    .izone:hover{border-color:var(--la);background:rgba(201,168,76,.04)}
+    .izone.has{border-style:solid;border-color:var(--la)}
+    .izone img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+    .izone .ov{position:absolute;inset:0;background:rgba(10,10,15,.65);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;gap:4px}
+    .izone:hover .ov{opacity:1}
+    .izone .ph{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--lm);pointer-events:none;font-size:11px}
+    .izone .ph i{font-size:26px}
+    .izone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .iclear{position:absolute;top:7px;right:7px;background:rgba(10,10,15,.85);border:none;color:#f87171;width:26px;height:26px;border-radius:50%;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:10;line-height:1}
+    .iclear:hover{background:rgba(220,38,38,.5)}
+    .izone .up-txt{font-size:10px;color:var(--lm);margin-top:2px}
+
+    /* ── BUTTONS ── */
+    .btnp{background:var(--la);color:#0a0a0f;border:none;padding:11px 18px;border-radius:8px;font-weight:600;font-size:13px;width:100%;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+    .btnp:hover:not(:disabled){background:var(--la2)}
+    .btnp:disabled{opacity:.6;cursor:not-allowed}
+    .btnd{background:rgba(220,38,38,.12);color:#f87171;border:1px solid rgba(220,38,38,.25);padding:5px 10px;border-radius:6px;font-size:11px}
+    .btnd:hover{background:rgba(220,38,38,.28)}
+
+    /* ── ADMIN ── */
+    .apanel{padding:1.4rem}
+    .ahead{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--lb)}
+    .ahead h2{font-size:1.1rem;font-weight:600;color:var(--la);display:flex;align-items:center;gap:7px}
+    .agrid{display:grid;grid-template-columns:1fr 1fr;gap:1.3rem}
+    .acard{background:var(--lc);border:1px solid var(--lb);border-radius:14px;padding:1.4rem}
+    .acard h3{font-size:13px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+    .pli{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--lb)}
+    .pli:last-child{border-bottom:none}
+    .pli-th{width:40px;height:40px;border-radius:8px;background:var(--lh);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--lm);font-size:14px}
+    .pli-th img{width:100%;height:100%;object-fit:cover}
+    .pli-i{flex:1;min-width:0}
+    .pli-t{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pli-c{font-size:10px;color:var(--lm);margin-top:2px}
+    .scard{background:var(--ld);border-radius:8px;padding:1rem;text-align:center}
+    .scard .n{font-size:1.5rem;font-weight:700;color:var(--la)}
+    .scard .l{font-size:10px;color:var(--lm);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+    /* ── EDIT MODAL ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(5px);animation:fadein .2s ease}
+    @keyframes fadein{from{opacity:0}to{opacity:1}}
+    .modal{background:var(--lc);border:1px solid var(--lb);border-radius:18px;padding:1.8rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;position:relative;animation:slidein .25s ease}
+    @keyframes slidein{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.4rem;padding-bottom:1rem;border-bottom:1px solid var(--lb)}
+    .modal-head h3{font-size:1rem;font-weight:600;color:var(--la);display:flex;align-items:center;gap:7px}
+    .modal-close{background:none;border:none;color:var(--lm);font-size:20px;line-height:1;padding:4px;border-radius:6px;transition:color .2s}
+    .modal-close:hover{color:var(--lt)}
+    .btne{background:rgba(201,168,76,.12);color:var(--la);border:1px solid rgba(201,168,76,.25);padding:5px 10px;border-radius:6px;font-size:11px;display:inline-flex;align-items:center;gap:4px}
+    .btne:hover{background:rgba(201,168,76,.22)}
+    .pli-actions{display:flex;gap:5px;flex-shrink:0}
+
+    @media(max-width:600px){
+      .hero h1{font-size:1.6rem}
+      .agrid{grid-template-columns:1fr}
+      .hstats{gap:1.8rem}
+      .pgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+      .modal{padding:1.4rem}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ─── SUPABASE INIT ───────────────────────────────────────────────
+const SUPA_URL = 'https://xbngwpzciinrmspbskzk.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhibmd3cHpjaWlucm1zcGJza3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNTgyMjMsImV4cCI6MjA5NjczNDIyM30.OqXwczpW0-08sMD_JnbWvZGMpLQY_nltMvPhvcOmAz8';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ─── CONFIG ──────────────────────────────────────────────────────
+const INSTA = 'https://www.instagram.com/lusarostore/';
+const ADMIN_EMAIL = 'lusaro123@gmail.com';
+const ADMIN_PASS  = 'hellobro123';
+const AKEY = 'lusaro_admin_v1';
+
+const CATS = [
+  {id:'all',    label:'All Products',   icon:'ti-layout-grid'},
+  {id:'car',    label:'Car & Auto',     icon:'ti-car'},
+  {id:'kitchen',label:'Kitchen',        icon:'ti-tools-kitchen-2'},
+  {id:'fashion',label:'Fashion',        icon:'ti-shirt'},
+  {id:'tech',   label:'Tech & Gadgets', icon:'ti-device-laptop'},
+  {id:'home',   label:'Home & Living',  icon:'ti-home'},
+  {id:'beauty', label:'Beauty & Care',  icon:'ti-sparkles'},
+];
+
+// ─── STATE ───────────────────────────────────────────────────────
+const S = {
+  view: isLoggedIn() ? 'admin' : 'home',
+  prods: [],
+  cat: 'all',
+  loading: true,
+  logErr: '',
+  pendingImg: null,
+  adding: false,
+  editingProd: null,
+  editPendingImg: null,
+  editPendingFile: null,
+  editRemoveImg: false,
+};
+
+function isLoggedIn(){ try{ return localStorage.getItem(AKEY)==='yes' }catch(e){ return false } }
+function doLogin(){ try{ localStorage.setItem(AKEY,'yes') }catch(e){} }
+function doLogout(){ try{ localStorage.removeItem(AKEY) }catch(e){} }
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML }
+function catLbl(id){ return (CATS.find(c=>c.id===id)||{label:id}).label }
+
+// ─── SUPABASE HELPERS ────────────────────────────────────────────
+async function fetchProducts(){
+  S.loading = true; renderApp();
+  const { data, error } = await supa
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if(error){ showToast('Failed to load products: '+error.message, true); S.loading=false; renderApp(); return; }
+  S.prods = data || [];
+  S.loading = false;
+  renderApp();
+}
+
+async function insertProduct(prod){
+  const { data, error } = await supa.from('products').insert([prod]).select();
+  if(error) throw error;
+  return data[0];
+}
+
+async function deleteProduct(id){
+  const { error } = await supa.from('products').delete().eq('id', id);
+  if(error) throw error;
+}
+
+async function updateProduct(id, fields){
+  const { data, error } = await supa.from('products').update(fields).eq('id', id).select();
+  if(error) throw error;
+  return data[0];
+}
+
+async function uploadImage(file){
+  const ext = file.name.split('.').pop();
+  const name = `product_${Date.now()}.${ext}`;
+  const { data, error } = await supa.storage
+    .from('product-images')
+    .upload(name, file, { cacheControl:'3600', upsert:false });
+  if(error) throw error;
+  const { data: urlData } = supa.storage.from('product-images').getPublicUrl(name);
+  return urlData.publicUrl;
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────
+function showToast(msg, isErr=false){
+  const old = document.getElementById('toast');
+  if(old) old.remove();
+  const t = document.createElement('div');
+  t.id = 'toast';
+  t.className = 'toast' + (isErr?' err':'');
+  t.innerHTML = `<i class="ti ${isErr?'ti-alert-circle':'ti-circle-check'}"></i>${esc(msg)}`;
+  document.body.appendChild(t);
+  setTimeout(()=>{ if(t.parentNode) t.remove(); }, 3500);
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────
+function renderApp(){
+  const a = document.getElementById('app');
+  if(S.view==='login'){ a.innerHTML=rLogin(); bLogin(); return; }
+  if(S.view==='admin'){ a.innerHTML=rAdmin(); bAdmin(); return; }
+  a.innerHTML = rHome();
+}
+
+// NAV
+function rNav(admin=false){
+  return `<nav>
+    <div class="nlogo" onclick="gHome()">
+      <div class="nm">L</div>
+      <span class="nt">LUSARO</span>
+    </div>
+    <div class="nav-r">
+      ${admin
+        ? `<span style="font-size:11px;color:var(--lm)">Admin</span>
+           <button class="nbtn" onclick="gLogout()"><i class="ti ti-logout"></i> Logout</button>`
+        : `<a href="${INSTA}" target="_blank" rel="noopener" class="nbtn"><i class="ti ti-brand-instagram"></i> Store</a>
+           <button class="nbtn p" onclick="gLogin()"><i class="ti ti-shield-lock"></i> Admin</button>`
+      }
+    </div>
+  </nav>`;
+}
+
+// HOME
+function rHome(){
+  const list = S.cat==='all' ? S.prods : S.prods.filter(p=>p.category===S.cat);
+  const tabs = CATS.map(c=>`
+    <button class="ctab${S.cat===c.id?' a':''}" onclick="setCat('${c.id}')">
+      <i class="ti ${c.icon}"></i>${c.label}
+    </button>`).join('');
+
+  let cards;
+  if(S.loading){
+    cards = `<div class="loading"><div class="spinner"></div>Loading products...</div>`;
+  } else if(!list.length){
+    cards = `<div class="empty"><i class="ti ti-package-off"></i><p>No products in this category yet.</p><p style="margin-top:6px;font-size:12px">Follow us on Instagram for updates!</p></div>`;
+  } else {
+    cards = list.map(p=>`
+      <a class="pcard" href="${esc(p.link||'#')}" target="_blank" rel="noopener">
+        <div class="pimg">
+          ${p.badge?`<span class="pbadge">${esc(p.badge)}</span>`:''}
+          ${p.image_url
+            ? `<img src="${esc(p.image_url)}" alt="${esc(p.title)}" loading="lazy">`
+            : `<i class="ti ti-package"></i>`}
+        </div>
+        <div class="pinfo">
+          <div class="ptitle">${esc(p.title)}</div>
+          <div class="pdesc">${esc(p.description||'')}</div>
+          <div class="pfoot">
+            <span class="ptag">${catLbl(p.category)}</span>
+            <span class="pcta"><i class="ti ti-external-link"></i>View</span>
+          </div>
+        </div>
+      </a>`).join('');
+  }
+
+  return `${rNav()}
+  <section class="hero">
+    <div class="hbadge"><i class="ti ti-sparkles"></i>Curated Collections</div>
+    <h1>Discover <span>Premium</span> Products<br>Handpicked for You</h1>
+    <p>Curated selections across cars, kitchen, fashion, tech and more — all in one aesthetic store.</p>
+    <div class="hstats">
+      <div class="hstat"><div class="n" id="stat-total">${S.prods.length}</div><div class="l">Products</div></div>
+      <div class="hstat"><div class="n">${CATS.length-1}</div><div class="l">Categories</div></div>
+      <div class="hstat"><div class="n">100%</div><div class="l">Curated</div></div>
+    </div>
+  </section>
+
+  <div class="istrip">
+    <span><strong>Follow Lusaro</strong> on Instagram for latest drops & deals</span>
+    <a class="ilink" href="${INSTA}" target="_blank" rel="noopener"><i class="ti ti-brand-instagram"></i>@lusarostore</a>
+  </div>
+
+  <div class="sec">
+    <div class="ctabs">${tabs}</div>
+    <div class="pgrid">${cards}</div>
+  </div>
+
+  <footer>
+    <div class="flogo">LUSARO</div>
+    <p style="font-size:12px;color:var(--lm);margin-bottom:.7rem">Your aesthetic product destination</p>
+    <div class="flinks">
+      <a href="${INSTA}" target="_blank">Instagram</a>
+      <a href="#" onclick="gLogin();return false">Admin Login</a>
+    </div>
+    <p style="font-size:11px;color:var(--lm)">© 2025 Lusaro Store · All rights reserved</p>
+  </footer>`;
+}
+
+// LOGIN
+function rLogin(){
+  return `<div class="lwrap"><div class="lcard">
+    <div class="llogo">LUSARO</div>
+    <div class="lsub">Admin Access Portal</div>
+    ${S.logErr?`<div class="lerr"><i class="ti ti-alert-circle"></i>${esc(S.logErr)}</div>`:''}
+    <div class="fg"><label>Email</label>
+      <input type="email" id="le" placeholder="Enter your email" autocomplete="off">
+    </div>
+    <div class="fg"><label>Password</label>
+      <input type="password" id="lp" placeholder="Enter your password" autocomplete="off">
+    </div>
+    <button class="btnp" id="lbtn"><i class="ti ti-login"></i>Sign In</button>
+    <button onclick="gHome()" style="background:none;border:none;color:var(--lm);cursor:pointer;margin-top:1rem;font-size:12px;width:100%">
+      <i class="ti ti-arrow-left"></i> Back to Store
+    </button>
+  </div></div>`;
+}
+
+function bLogin(){
+  function attempt(){
+    const e = document.getElementById('le').value.trim().toLowerCase();
+    const p = document.getElementById('lp').value;
+    if(e===ADMIN_EMAIL && p===ADMIN_PASS){
+      doLogin(); S.view='admin'; S.logErr=''; renderApp();
+    } else {
+      S.logErr='Incorrect email or password.'; renderApp();
+    }
+  }
+  document.getElementById('lbtn').addEventListener('click', attempt);
+  document.getElementById('lp').addEventListener('keydown', e=>{ if(e.key==='Enter') attempt(); });
+  document.getElementById('le').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('lp').focus(); });
+}
+
+// ADMIN
+function rAdmin(){
+  const catOpts = CATS.filter(c=>c.id!=='all')
+    .map(c=>`<option value="${c.id}">${c.label}</option>`).join('');
+
+  const items = S.prods.length
+    ? S.prods.map(p=>`
+      <div class="pli" data-id="${p.id}">
+        <div class="pli-th">
+          ${p.image_url ? `<img src="${esc(p.image_url)}" alt="">` : `<i class="ti ti-package"></i>`}
+        </div>
+        <div class="pli-i">
+          <div class="pli-t">${esc(p.title)}</div>
+          <div class="pli-c">${catLbl(p.category)}</div>
+        </div>
+        <div class="pli-actions">
+          <button class="btne" onclick="openEdit('${p.id}')"><i class="ti ti-pencil"></i>Edit</button>
+          <button class="btnd" onclick="removeProd('${p.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('')
+    : `<p style="color:var(--lm);font-size:12px;text-align:center;padding:1.5rem 0">No products yet. Add your first one!</p>`;
+
+  return `${rNav(true)}
+  <div class="apanel">
+    <div class="ahead">
+      <h2><i class="ti ti-layout-dashboard"></i>Admin Dashboard</h2>
+      <a href="${INSTA}" target="_blank" class="ilink" style="font-size:11px;padding:5px 12px">
+        <i class="ti ti-brand-instagram"></i>View Store
+      </a>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.4rem">
+      <div class="scard"><div class="n" id="ac-total">${S.prods.length}</div><div class="l">Products</div></div>
+      <div class="scard"><div class="n">${new Set(S.prods.map(p=>p.category)).size}</div><div class="l">Active Cats</div></div>
+      <div class="scard"><div class="n">${CATS.length-1}</div><div class="l">Total Cats</div></div>
+    </div>
+
+    <div class="agrid">
+      <!-- ADD FORM -->
+      <div class="acard">
+        <h3><i class="ti ti-circle-plus"></i>Add New Product</h3>
+
+        <div class="fg"><label>Product Photo</label>
+          <div class="izone" id="izone">
+            <div class="ph"><i class="ti ti-photo-up"></i><span>Click to upload photo</span><span class="up-txt">JPG · PNG · WEBP</span></div>
+            <input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">
+          </div>
+        </div>
+
+        <div class="fg"><label>Title <span style="color:#f87171">*</span></label>
+          <input type="text" id="ft" placeholder="e.g. Car Seat Organizer">
+        </div>
+        <div class="fg"><label>Description</label>
+          <textarea id="fd" placeholder="Short description of the product..."></textarea>
+        </div>
+        <div class="fg"><label>Affiliate / Product Link <span style="color:#f87171">*</span></label>
+          <input type="url" id="fl" placeholder="https://...">
+        </div>
+        <div class="fg"><label>Category</label>
+          <select id="fc">${catOpts}</select>
+        </div>
+        <div class="fg"><label>Badge <span style="color:var(--lm);font-size:10px">(optional)</span></label>
+          <input type="text" id="fb" placeholder="New / Hot / Sale">
+        </div>
+
+        <button class="btnp" id="abtn"><i class="ti ti-circle-plus"></i>Add Product</button>
+        <p id="amsg" style="font-size:11px;color:var(--la);margin-top:8px;display:none;text-align:center">
+          <i class="ti ti-circle-check"></i> Product added successfully!
+        </p>
+      </div>
+
+      <!-- PRODUCT LIST -->
+      <div class="acard">
+        <h3><i class="ti ti-list"></i>Manage Products (<span id="plcnt">${S.prods.length}</span>)</h3>
+        <div style="max-height:500px;overflow-y:auto;padding-right:2px" id="plist">${items}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bAdmin(){
+  const zone = document.getElementById('izone');
+  S.pendingImg = null;
+  S.pendingFile = null;
+
+  function setPreview(file, src){
+    S.pendingImg = src;
+    S.pendingFile = file;
+    zone.classList.add('has');
+    zone.innerHTML = `
+      <img src="${src}" alt="Preview">
+      <div class="ov"><i class="ti ti-photo-up" style="font-size:22px;color:#fff"></i><span style="font-size:11px;color:#fff">Change photo</span></div>
+      <button class="iclear" id="iclear" title="Remove photo"><i class="ti ti-x"></i></button>
+      <input type="file" id="fimg2" accept="image/*" aria-label="Change photo">`;
+    document.getElementById('fimg2').addEventListener('change', function(){
+      if(!this.files[0]) return;
+      readFile(this.files[0]);
+    });
+    document.getElementById('iclear').addEventListener('click', function(e){
+      e.stopPropagation(); e.preventDefault();
+      S.pendingImg = null; S.pendingFile = null;
+      zone.classList.remove('has');
+      zone.innerHTML = `<div class="ph"><i class="ti ti-photo-up"></i><span>Click to upload photo</span><span class="up-txt">JPG · PNG · WEBP</span></div><input type="file" id="fimg" accept="image/*" aria-label="Upload product photo">`;
+      document.getElementById('fimg').addEventListener('change', handleFileInput);
+    });
+  }
+
+  function readFile(file){
+    const r = new FileReader();
+    r.onload = e => setPreview(file, e.target.result);
+    r.readAsDataURL(file);
+  }
+
+  function handleFileInput(){ if(this.files[0]) readFile(this.files[0]); }
+  document.getElementById('fimg').addEventListener('change', handleFileInput);
+
+  // ADD PRODUCT
+  document.getElementById('abtn').addEventListener('click', async ()=>{
+    const title = document.getElementById('ft').value.trim();
+    const link  = document.getElementById('fl').value.trim();
+    if(!title || !link){ showToast('Title and link are required.', true); return; }
+
+    const btn = document.getElementById('abtn');
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px"></div>Adding...`;
+
+    try {
+      let image_url = null;
+
+      // Upload image to Supabase Storage if provided
+      if(S.pendingFile){
+        try {
+          image_url = await uploadImage(S.pendingFile);
+        } catch(imgErr){
+          // If storage bucket doesn't exist, fall back to base64
+          image_url = S.pendingImg;
+        }
+      }
+
+      const prod = {
+        title,
+        description: document.getElementById('fd').value.trim(),
+        link,
+        category: document.getElementById('fc').value,
+        badge: document.getElementById('fb').value.trim() || null,
+        image_url,
+      };
+
+      const inserted = await insertProduct(prod);
+      S.prods.unshift(inserted);
+
+      // Reset form
+      document.getElementById('ft').value = '';
+      document.getElementById('fd').value = '';
+      document.getElementById('fl').value = '';
+      document.getElementById('fb').value = '';
+      S.pendingImg = null; S.pendingFile = null;
+      zone.classList.remove('has');
+      zone.innerHTML = `<div class="ph"><i class="ti ti-photo-up"></i><span>Click to upload photo</span><span class="up-txt">JPG · PNG · WEBP</span></div><input type="file" id="fimg" accept="image/*">`;
+      document.getElementById('fimg').addEventListener('change', handleFileInput);
+
+      showToast('Product added! Visible to all visitors now.');
+      refreshAdminList();
+      updateAdminStats();
+
+      const m = document.getElementById('amsg');
+      if(m){ m.style.display='block'; setTimeout(()=>m.style.display='none', 3000); }
+
+    } catch(err){
+      showToast('Error adding product: ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="ti ti-circle-plus"></i>Add Product`;
+    }
+  });
+}
+
+function refreshAdminList(){
+  const el = document.getElementById('plist');
+  if(!el) return;
+  el.innerHTML = S.prods.length
+    ? S.prods.map(p=>`
+      <div class="pli" data-id="${p.id}">
+        <div class="pli-th">
+          ${p.image_url ? `<img src="${esc(p.image_url)}" alt="">` : `<i class="ti ti-package"></i>`}
+        </div>
+        <div class="pli-i">
+          <div class="pli-t">${esc(p.title)}</div>
+          <div class="pli-c">${catLbl(p.category)}</div>
+        </div>
+        <div class="pli-actions">
+          <button class="btne" onclick="openEdit('${p.id}')"><i class="ti ti-pencil"></i>Edit</button>
+          <button class="btnd" onclick="removeProd('${p.id}')"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('')
+    : `<p style="color:var(--lm);font-size:12px;text-align:center;padding:1.5rem 0">No products yet.</p>`;
+  const cnt = document.getElementById('plcnt');
+  if(cnt) cnt.textContent = S.prods.length;
+}
+
+function updateAdminStats(){
+  const t = document.getElementById('ac-total');
+  if(t) t.textContent = S.prods.length;
+}
+
+// ─── GLOBAL ACTIONS ──────────────────────────────────────────────
+window.gHome = ()=>{ S.view='home'; renderApp(); fetchProducts(); }
+window.gLogin = ()=>{ if(isLoggedIn()){ S.view='admin'; renderApp(); } else { S.view='login'; S.logErr=''; renderApp(); } }
+window.gLogout = ()=>{ doLogout(); S.view='home'; renderApp(); fetchProducts(); }
+window.setCat = (c)=>{ S.cat=c; renderApp(); }
+
+window.removeProd = async (id)=>{
+  if(!confirm('Delete this product? This cannot be undone.')) return;
+  try {
+    await deleteProduct(id);
+    S.prods = S.prods.filter(p=>String(p.id)!==String(id));
+    showToast('Product deleted.');
+    refreshAdminList();
+    updateAdminStats();
+  } catch(err){
+    showToast('Error deleting: '+err.message, true);
+  }
+};
+
+// ─── EDIT MODAL ──────────────────────────────────────────────────
+window.openEdit = (id)=>{
+  const p = S.prods.find(x=>String(x.id)===String(id));
+  if(!p) return;
+  S.editingProd = p;
+  S.editPendingImg = null;
+  S.editPendingFile = null;
+
+  const catOpts = CATS.filter(c=>c.id!=='all')
+    .map(c=>`<option value="${c.id}"${p.category===c.id?' selected':''}>${c.label}</option>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'edit-overlay';
+  overlay.innerHTML = `
+    <div class="modal" id="edit-modal">
+      <div class="modal-head">
+        <h3><i class="ti ti-pencil"></i>Edit Product</h3>
+        <button class="modal-close" onclick="closeEdit()" title="Close"><i class="ti ti-x"></i></button>
+      </div>
+
+      <div class="fg"><label>Product Photo</label>
+        <div class="izone${p.image_url?' has':''}" id="edit-izone">
+          ${p.image_url
+            ? `<img src="${esc(p.image_url)}" alt="Current photo">
+               <div class="ov"><i class="ti ti-photo-up" style="font-size:22px;color:#fff"></i><span style="font-size:11px;color:#fff">Change photo</span></div>
+               <button class="iclear" id="edit-iclear" title="Remove photo"><i class="ti ti-x"></i></button>
+               <input type="file" id="edit-fimg" accept="image/*" aria-label="Change product photo">`
+            : `<div class="ph"><i class="ti ti-photo-up"></i><span>Click to upload photo</span><span class="up-txt">JPG · PNG · WEBP</span></div>
+               <input type="file" id="edit-fimg" accept="image/*" aria-label="Upload product photo">`
+          }
+        </div>
+      </div>
+
+      <div class="fg"><label>Title <span style="color:#f87171">*</span></label>
+        <input type="text" id="edit-ft" value="${esc(p.title)}">
+      </div>
+      <div class="fg"><label>Description</label>
+        <textarea id="edit-fd">${esc(p.description||'')}</textarea>
+      </div>
+      <div class="fg"><label>Affiliate / Product Link <span style="color:#f87171">*</span></label>
+        <input type="url" id="edit-fl" value="${esc(p.link||'')}">
+      </div>
+      <div class="fg"><label>Category</label>
+        <select id="edit-fc">${catOpts}</select>
+      </div>
+      <div class="fg"><label>Badge <span style="color:var(--lm);font-size:10px">(optional)</span></label>
+        <input type="text" id="edit-fb" value="${esc(p.badge||'')}" placeholder="New / Hot / Sale">
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:.5rem">
+        <button class="btnp" id="edit-save"><i class="ti ti-device-floppy"></i>Save Changes</button>
+        <button onclick="closeEdit()" style="background:var(--lh);color:var(--lm);border:1px solid var(--lb);padding:11px 16px;border-radius:8px;font-size:13px;flex-shrink:0">Cancel</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Close on overlay click
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) closeEdit(); });
+
+  // Image handling inside modal
+  const eZone = document.getElementById('edit-izone');
+
+  function setEditPreview(file, src){
+    S.editPendingImg = src;
+    S.editPendingFile = file;
+    eZone.classList.add('has');
+    eZone.innerHTML = `
+      <img src="${src}" alt="Preview">
+      <div class="ov"><i class="ti ti-photo-up" style="font-size:22px;color:#fff"></i><span style="font-size:11px;color:#fff">Change photo</span></div>
+      <button class="iclear" id="edit-iclear2" title="Remove"><i class="ti ti-x"></i></button>
+      <input type="file" id="edit-fimg2" accept="image/*" aria-label="Change photo">`;
+    document.getElementById('edit-fimg2').addEventListener('change', function(){
+      if(this.files[0]){ const r=new FileReader(); r.onload=e=>setEditPreview(this.files[0],e.target.result); r.readAsDataURL(this.files[0]); }
+    });
+    document.getElementById('edit-iclear2').addEventListener('click', e=>{
+      e.stopPropagation(); e.preventDefault();
+      S.editPendingImg = null; S.editPendingFile = null;
+      S.editRemoveImg = true;
+      eZone.classList.remove('has');
+      eZone.innerHTML = `<div class="ph"><i class="ti ti-photo-up"></i><span>Click to upload photo</span><span class="up-txt">JPG · PNG · WEBP</span></div><input type="file" id="edit-fimg" accept="image/*">`;
+      document.getElementById('edit-fimg').addEventListener('change', handleEditFile);
+    });
+  }
+
+  function handleEditFile(){ if(this.files[0]){ const r=new FileReader(); r.onload=e=>setEditPreview(this.files[0],e.target.result); r.readAsDataURL(this.files[0]); } }
+
+  document.getElementById('edit-fimg').addEventListener('change', handleEditFile);
+
+  if(p.image_url){
+    document.getElementById('edit-iclear').addEventListener('click', e=>{
+      e.stopPropagation(); e.preventDefault();
+      S.editPendingImg = null; S.editPendingFile = null;
+      S.editRemoveImg = true;
+      eZone.classList.remove('has');
+      eZone.innerHTML = `<div class="ph"><i class="ti ti-photo-up"></i><span>Click to upload photo</span><span class="up-txt">JPG · PNG · WEBP</span></div><input type="file" id="edit-fimg" accept="image/*">`;
+      document.getElementById('edit-fimg').addEventListener('change', handleEditFile);
+    });
+  }
+
+  // Save handler
+  document.getElementById('edit-save').addEventListener('click', async ()=>{
+    const title = document.getElementById('edit-ft').value.trim();
+    const link  = document.getElementById('edit-fl').value.trim();
+    if(!title || !link){ showToast('Title and link are required.', true); return; }
+
+    const btn = document.getElementById('edit-save');
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px"></div>Saving...`;
+
+    try {
+      let image_url = p.image_url; // keep existing by default
+
+      if(S.editPendingFile){
+        try { image_url = await uploadImage(S.editPendingFile); }
+        catch(e){ image_url = S.editPendingImg; }
+      } else if(S.editRemoveImg){
+        image_url = null;
+      }
+
+      const fields = {
+        title,
+        description: document.getElementById('edit-fd').value.trim(),
+        link,
+        category: document.getElementById('edit-fc').value,
+        badge: document.getElementById('edit-fb').value.trim() || null,
+        image_url,
+      };
+
+      const updated = await updateProduct(p.id, fields);
+      const idx = S.prods.findIndex(x=>String(x.id)===String(p.id));
+      if(idx>-1) S.prods[idx] = updated;
+
+      showToast('Product updated successfully!');
+      closeEdit();
+      refreshAdminList();
+
+    } catch(err){
+      showToast('Error saving: ' + err.message, true);
+      btn.disabled = false;
+      btn.innerHTML = `<i class="ti ti-device-floppy"></i>Save Changes`;
+    }
+  });
+};
+
+window.closeEdit = ()=>{
+  const o = document.getElementById('edit-overlay');
+  if(o) o.remove();
+  S.editingProd = null;
+  S.editPendingImg = null;
+  S.editPendingFile = null;
+  S.editRemoveImg = false;
+};
+
+// ─── INIT ────────────────────────────────────────────────────────
+renderApp();
+fetchProducts();
+
+// Auto-refresh products every 30 seconds for live updates
+setInterval(()=>{
+  if(S.view==='home') fetchProducts();
+}, 30000);
+</script>
+</body>
+</html>
